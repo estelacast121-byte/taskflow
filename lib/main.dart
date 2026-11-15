@@ -1,14 +1,33 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart';
 
+import 'firebase_options.dart';
 import 'task_notifier.dart';
 import 'pantallas/escanear_tarea_screen.dart';
+import 'pantallas/nota_gemini_screen.dart';
 import 'modelos/tarea.dart' as modelo;
 import 'utils/formato.dart';
 import 'pantallas/tareas_remotas_screen.dart';
 import 'practica/experimento_isolate_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Proveedor local de desarrollo: nunca se activa en profile o release.
+  if (kDebugMode &&
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.android) {
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: const AndroidDebugProvider(),
+    );
+  }
+
   runApp(
     const ProviderScope(
       child: TaskFlowApp(),
@@ -73,6 +92,23 @@ class ResumenDiaScreen extends ConsumerWidget {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Nota con Gemini',
+            icon: const Icon(Icons.auto_awesome, color: moradoOscuro),
+            onPressed: () async {
+              final propuesta = await Navigator.push<modelo.Tarea>(context,
+                MaterialPageRoute(builder: (_) => const NotaGeminiScreen()));
+              if (!context.mounted || propuesta == null) return;
+              final actuales = ref.read(taskProvider);
+              final id = actuales.fold<int>(0, (max, t) => t.id > max ? t.id : max) + 1;
+              ref.read(taskProvider.notifier).agregarTarea(Tarea(
+                id: id, titulo: propuesta.titulo,
+                detalle: '${formatearFecha(propuesta.fechaLimite)} · ${propuesta.categoria}'
+                    '${propuesta.descripcion.isEmpty ? '' : '\n${propuesta.descripcion}'}',
+                prioridad: propuesta.prioridadTexto,
+              ));
+            },
+          ),
           IconButton(
             tooltip: 'Tareas en la nube',
             icon: const Icon(Icons.cloud, color: moradoOscuro),
@@ -399,6 +435,23 @@ class ResumenDiaScreen extends ConsumerWidget {
             ),
           ),
           actions: [
+          IconButton(
+            tooltip: 'Nota con Gemini',
+            icon: const Icon(Icons.auto_awesome, color: moradoOscuro),
+            onPressed: () async {
+              final propuesta = await Navigator.push<modelo.Tarea>(context,
+                MaterialPageRoute(builder: (_) => const NotaGeminiScreen()));
+              if (!context.mounted || propuesta == null) return;
+              final actuales = ref.read(taskProvider);
+              final id = actuales.fold<int>(0, (max, t) => t.id > max ? t.id : max) + 1;
+              ref.read(taskProvider.notifier).agregarTarea(Tarea(
+                id: id, titulo: propuesta.titulo,
+                detalle: '${formatearFecha(propuesta.fechaLimite)} · ${propuesta.categoria}'
+                    '${propuesta.descripcion.isEmpty ? '' : '\n${propuesta.descripcion}'}',
+                prioridad: propuesta.prioridadTexto,
+              ));
+            },
+          ),
             TextButton(
               onPressed: () {
                 Navigator.pop(context);

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "434875075760",
+    "project_id": "taskflow-nancy",
+    "storage_bucket": "taskflow-nancy.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:434875075760:android:94aacb59bc8638182c7f75",
+        "android_client_info": {
+          "package_name": "com.example.taskflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuU9SGCopgAPW68sDutUp7YfNGrTt4Flg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

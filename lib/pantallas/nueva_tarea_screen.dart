@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../modelos/tarea.dart';
+import '../datos/propuestas_tarea.dart';
 import '../utils/formato.dart';
 import '../validacion/validadores_tarea.dart';
 
@@ -11,8 +12,9 @@ import '../validacion/validadores_tarea.dart';
 /// Quien la abrio decide que hacer con el resultado.
 /// Lectura: Libro B, Cap. 7, "Sending data backwards", pp. 264-267.
 class NuevaTareaScreen extends StatefulWidget {
-  const NuevaTareaScreen({super.key, this.textoReconocido});
+  const NuevaTareaScreen({super.key, this.textoReconocido, this.propuesta});
   final String? textoReconocido;
+  final PropuestaTarea? propuesta;
 
   @override
   State<NuevaTareaScreen> createState() => _NuevaTareaScreenState();
@@ -36,6 +38,13 @@ class _NuevaTareaScreenState extends State<NuevaTareaScreen> {
   @override
   void initState() {
     super.initState();
+    final propuesta = widget.propuesta;
+    if (propuesta != null) {
+      _tituloCtrl.text = propuesta.titulo;
+      _descripcionCtrl.text = propuesta.descripcion;
+      _fechaLimite = propuesta.fechaLimite;
+      if (_fechaLimite != null) _fechaCtrl.text = formatearFecha(_fechaLimite!);
+    }
     final texto = widget.textoReconocido;
     if (texto != null) {
       final lineas = texto
@@ -102,6 +111,10 @@ class _NuevaTareaScreenState extends State<NuevaTareaScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (widget.propuesta != null)
+              const Text(
+                'Revisa y corrige la propuesta de Gemini antes de guardar. Media y General son valores iniciales.',
+              ),
             if (widget.textoReconocido != null) ...[
               const Text(
                 'Revisa la propuesta: el reconocimiento puede equivocarse. '
