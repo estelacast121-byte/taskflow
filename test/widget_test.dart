@@ -1,29 +1,45 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:taskflow/main.dart';
+import 'package:taskflow/task_notifier.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const TaskFlowApp());
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('agrega, completa y elimina una tarea local', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TaskFlowApp(),
+      ),
+    );
+    expect(find.text('33%'), findsOneWidget);
+    expect(container.read(taskProvider).length, 3);
+    await tester.tap(find.text('Agregar tarea'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Tarea de prueba');
+    await tester.tap(find.text('Agregar'));
+    await tester.pumpAndSettle();
+    expect(container.read(taskProvider).length, 4);
+    expect(find.text('Tarea de prueba'), findsOneWidget);
+    await tester.tap(
+      find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is InkWell &&
+                widget.child is Container &&
+                (widget.child as Container).constraints?.maxWidth == 27,
+          )
+          .first,
+    );
     await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(container.read(taskProvider).first.completada, isTrue);
+    await tester.ensureVisible(find.byTooltip('Eliminar tarea').first);
+    await tester.tap(find.byTooltip('Eliminar tarea').first);
+    await tester.pump();
+    expect(container.read(taskProvider).length, 3);
+    expect(find.byIcon(Icons.cloud), findsOneWidget);
   });
 }
+

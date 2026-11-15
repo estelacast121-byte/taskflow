@@ -1,0 +1,29 @@
+Verificación del agente, 16 de octubre de 2026.
+Antes de ejecutar 1.3, predicción del agente: A, E, C, B, D.
+Esto no sustituye la predicción personal de la estudiante.
+A. inicio de main
+E. fin de main
+C. microtarea
+B. evento (cola de eventos)
+D. temporizador de 0 ms
+Error controlado: Exception: Título vacío
+Secuencial: 5 s -> Ana, 7
+Concurrente: 3 s -> Ana, 7
+Dependiente: 5055 ms; Ana, 7
+00:00 +0: loading C:/ProyectosFlutter/taskflow/test/practica_asincrona_test.dart
+00:00 +0: guardar propaga error asíncrono y acepta título válido
+Guardada: Prueba de asincronía
+00:02 +1: pendientes dependientes rechaza perfil vacío
+00:02 +2: ambas funciones de CPU producen el mismo resultado
+CPU sin isolate: 2560 ms; resultado 1199999997
+CPU con isolate: 2658 ms; resultado 1199999997
+00:07 +3: All tests passed!
+
+Comprobación adicional del original 1.6 en copia temporal:
+- dart analyze detectó unawaited_futures en la llamada original, línea 20.
+- El análisis informó 1 aviso y terminó con código 0 (nivel info).
+- La ejecución imprimió ¡Listo! y luego Unhandled exception: Exception: Título vacío.
+- Código de salida de la ejecución original: 255.
+- La versión corregida imprimió Error controlado: Exception: Título vacío.
+
+Los tiempos de CPU corresponden a flutter test en Windows, no a una observación visual en la aplicación.

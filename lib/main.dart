@@ -1,7 +1,19 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'task_notifier.dart';
+import 'pantallas/escanear_tarea_screen.dart';
+import 'modelos/tarea.dart' as modelo;
+import 'utils/formato.dart';
+import 'pantallas/tareas_remotas_screen.dart';
+import 'practica/experimento_isolate_screen.dart';
 
 void main() {
-  runApp(const TaskFlowApp());
+  runApp(
+    const ProviderScope(
+      child: TaskFlowApp(),
+    ),
+  );
 }
 
 class TaskFlowApp extends StatelessWidget {
@@ -21,7 +33,7 @@ class TaskFlowApp extends StatelessWidget {
   }
 }
 
-class ResumenDiaScreen extends StatelessWidget {
+class ResumenDiaScreen extends ConsumerWidget {
   const ResumenDiaScreen({super.key});
 
   static const Color moradoOscuro = Color(0xFF2C215C);
@@ -34,361 +46,302 @@ class ResumenDiaScreen extends StatelessWidget {
   static const Color textoGris = Color(0xFF6B6B6B);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tareas = ref.watch(taskProvider);
+
+    final completadas =
+        tareas.where((tarea) => tarea.completada).length;
+
+    final pendientes =
+        tareas.where((tarea) => !tarea.completada).length;
+
+    final porcentaje = tareas.isEmpty
+        ? 0
+        : ((completadas / tareas.length) * 100).round();
+
     return Scaffold(
       backgroundColor: fondoClaro,
 
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // BARRA SUPERIOR
-              SizedBox(
-                height: 56,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'TaskFlow',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: moradoOscuro,
-                      ),
+      appBar: AppBar(
+        backgroundColor: fondoClaro,
+        elevation: 0,
+        title: const Text(
+          'TaskFlow',
+          style: TextStyle(
+            color: moradoOscuro,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Tareas en la nube',
+            icon: const Icon(Icons.cloud, color: moradoOscuro),
+            onPressed: () async {
+              await Navigator.push<void>(context, MaterialPageRoute(
+                builder: (_) => const TareasRemotasScreen(),
+              ));
+            },
+          ),
+          IconButton(
+            tooltip: 'Experimento: isolates',
+            icon: const Icon(Icons.science_outlined, color: moradoOscuro),
+            onPressed: () async {
+              await Navigator.push<void>(context, MaterialPageRoute(
+                builder: (_) => const ExperimentoIsolateScreen(),
+              ));
+            },
+          ),
+          Container(
+            width: 36,
+            height: 36,
+            margin: const EdgeInsets.only(right: 16),
+            decoration: const BoxDecoration(
+              color: Color(0xFFEEEBF7),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: const Text(
+              'N',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: moradoOscuro,
+              ),
+            ),
+          ),
+        ],
+      ),
+
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: moradoOscuro),
+              icon: const Icon(Icons.document_scanner_outlined),
+              label: const Text('Escanear tarea'),
+              onPressed: () async {
+                final propuesta = await Navigator.push<modelo.Tarea>(context,
+                  MaterialPageRoute(builder: (_) => const EscanearTareaScreen()));
+                if (!context.mounted || propuesta == null) return;
+                final actuales = ref.read(taskProvider);
+                final id = actuales.fold<int>(0, (max, t) => t.id > max ? t.id : max) + 1;
+                ref.read(taskProvider.notifier).agregarTarea(Tarea(
+                  id: id, titulo: propuesta.titulo,
+                  detalle: '${formatearFecha(propuesta.fechaLimite)} · ${propuesta.categoria}'
+                      '${propuesta.descripcion.isEmpty ? '' : '\n${propuesta.descripcion}'}',
+                  prioridad: propuesta.prioridadTexto,
+                ));
+              },
+            ),
+            const SizedBox(height: 12),
+            // RESUMEN
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF2C215C),
+                        Color(0xFF453A7A),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEEEBF7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Resumen del día',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 21,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        '$pendientes tareas pendientes',
+                        style: const TextStyle(
+                          color: Color(0xFFC8C2DD),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$completadas tareas completadas',
+                        style: const TextStyle(
+                          color: Color(0xFFC8C2DD),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  right: 14,
+                  bottom: -27,
+                  child: Container(
+                    width: 76,
+                    height: 76,
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: naranja,
+                          width: 5,
+                        ),
                       ),
                       alignment: Alignment.center,
-                      child: const Text(
-                        'A',
-                        style: TextStyle(
-                          fontSize: 16,
+                      child: Text(
+                        '$porcentaje%',
+                        style: const TextStyle(
+                          fontSize: 17,
                           fontWeight: FontWeight.bold,
                           color: moradoOscuro,
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
+            ),
 
-              const SizedBox(height: 12),
+            const SizedBox(height: 48),
 
-              // TARJETA DE CABECERA
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 108,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF2C215C),
-                          Color(0xFF453A7A),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Buenos días, Ana',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 21,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Viernes 22 de agosto',
-                          style: TextStyle(
-                            color: Color(0xFFC8C2DD),
-                            fontSize: 14,
-                          ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          '3 tareas pendientes para hoy',
-                          style: TextStyle(
-                            color: Color(0xFFC8C2DD),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
+            // ESTADÍSTICAS
+            Row(
+              children: [
+                Expanded(
+                  child: _tarjetaEstadistica(
+                    numero: '${tareas.length}',
+                    texto: 'Tareas',
                   ),
-
-                  // INSIGNIA 60 %
-                  Positioned(
-                    right: 10,
-                    bottom: -27,
-                    child: Container(
-                      width: 76,
-                      height: 76,
-                      padding: const EdgeInsets.all(5),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: naranja,
-                            width: 5,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          '60%',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: moradoOscuro,
-                          ),
-                        ),
-                      ),
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _tarjetaEstadistica(
+                    numero: '$completadas',
+                    texto: 'Completadas',
                   ),
-                ],
-              ),
-
-              const SizedBox(height: 44),
-
-              // TARJETAS DE ESTADÍSTICAS
-              Row(
-                children: [
-                  Expanded(
-                    child: _tarjetaEstadistica(
-                      numero: '12',
-                      texto: 'Tareas',
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _tarjetaEstadistica(
+                    numero: '$pendientes',
+                    texto: 'Pendientes',
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _tarjetaEstadistica(
-                      numero: '7',
-                      texto: 'Completadas',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _tarjetaEstadistica(
-                      numero: '5',
-                      texto: 'Racha semanal',
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
+            ),
 
-              const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-              // ENCABEZADO DE SECCIÓN
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Tareas de hoy',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: textoOscuro,
-                    ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Mis tareas',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textoOscuro,
                   ),
-                  Text(
-                    'Ver todas',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: naranja,
-                    ),
+                ),
+                Text(
+                  '${tareas.length} registradas',
+                  style: const TextStyle(
+                    color: textoGris,
+                    fontSize: 12,
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
 
-              const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-              // PRIMERA TAREA
+            if (tareas.isEmpty)
               Container(
                 width: double.infinity,
-                height: 104,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(30),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: borde),
                 ),
-                child: Row(
+                child: const Column(
                   children: [
-                    Container(
-                      width: 25,
-                      height: 25,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: const Color(0xFFB8B1D3),
-                          width: 2,
-                        ),
-                      ),
+                    Icon(
+                      Icons.task_alt,
+                      size: 42,
+                      color: morado,
                     ),
-
-                    const SizedBox(width: 14),
-
-                    // Expanded permite que el contenido se adapte
-                    // al espacio disponible dentro del Row.
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Terminar el laboratorio de layouts y composición visual',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: textoOscuro,
-                            ),
-                          ),
-                          SizedBox(height: 5),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today_outlined,
-                                size: 14,
-                                color: textoGris,
-                              ),
-                              SizedBox(width: 5),
-                              Text(
-                                'Hoy · Universidad',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: textoGris,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(width: 8),
-
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFE6E4),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'Alta',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // SEGUNDA TAREA
-              _tarjetaTarea(
-                titulo: 'Revisar los pull requests',
-                detalle: 'Hoy · Trabajo',
-                prioridad: 'Media',
-                completada: true,
-              ),
-
-              const SizedBox(height: 12),
-
-              // TERCERA TAREA
-              _tarjetaTarea(
-                titulo: 'Leer la documentación',
-                detalle: 'Mañana · Aprendizaje',
-                prioridad: 'Baja',
-                completada: false,
-              ),
-
-              const SizedBox(height: 18),
-
-              // TARJETA DE FRASE
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: fondoFrase,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                    SizedBox(height: 10),
                     Text(
-                      '“',
+                      'No hay tareas registradas',
                       style: TextStyle(
-                        fontSize: 42,
-                        height: 0.8,
-                        color: Color(0xFFB7B0D1),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'La disciplina es el puente entre las metas\n'
-                            'y los logros que realmente importan.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              height: 1.6,
-                              fontStyle: FontStyle.italic,
-                              color: morado,
-                            ),
-                          ),
-                          SizedBox(height: 7),
-                          Text(
-                            '— Jim Rohn',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: moradoOscuro,
-                            ),
-                          ),
-                        ],
+                        color: textoGris,
                       ),
                     ),
                   ],
                 ),
+              )
+            else
+              ...tareas.map(
+                (tarea) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _tarjetaTarea(
+                    tarea: tarea,
+                    ref: ref,
+                  ),
+                ),
               ),
-            ],
-          ),
+
+            const SizedBox(height: 8),
+
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: fondoFrase,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'Organizar cada tarea ayuda a avanzar paso a paso hacia las metas.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  fontStyle: FontStyle.italic,
+                  color: morado,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
 
-      // BARRA INFERIOR
+      // AGREGAR TAREA
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: moradoOscuro,
+        foregroundColor: Colors.white,
+        onPressed: () {
+          _mostrarFormulario(context, ref, tareas);
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Agregar tarea'),
+      ),
+
       bottomNavigationBar: Container(
         height: 72,
         decoration: const BoxDecoration(
@@ -409,7 +362,7 @@ class ResumenDiaScreen extends StatelessWidget {
               activo: true,
             ),
             _ItemNavegacion(
-              icono: Icons.water_drop,
+              icono: Icons.water_drop_outlined,
               texto: 'Hábitos',
               activo: false,
             ),
@@ -424,12 +377,74 @@ class ResumenDiaScreen extends StatelessWidget {
     );
   }
 
+  static void _mostrarFormulario(
+    BuildContext context,
+    WidgetRef ref,
+    List<Tarea> tareas,
+  ) {
+    final controlador = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Nueva tarea'),
+          content: TextField(
+            controller: controlador,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Nombre de la tarea',
+              hintText: 'Ejemplo: Estudiar Flutter',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final titulo = controlador.text.trim();
+
+                if (titulo.isEmpty) {
+                  return;
+                }
+
+                final nuevoId = tareas.isEmpty
+                    ? 1
+                    : tareas
+                            .map((tarea) => tarea.id)
+                            .reduce((a, b) => a > b ? a : b) +
+                        1;
+
+                ref.read(taskProvider.notifier).agregarTarea(
+                      Tarea(
+                        id: nuevoId,
+                        titulo: titulo,
+                        detalle: 'Hoy · Universidad',
+                        prioridad: 'Media',
+                      ),
+                    );
+
+                Navigator.pop(context);
+              },
+              child: const Text('Agregar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _tarjetaEstadistica({
     required String numero,
     required String texto,
   }) {
     return Container(
-      height: 68,
+      height: 72,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -461,15 +476,16 @@ class ResumenDiaScreen extends StatelessWidget {
   }
 
   Widget _tarjetaTarea({
-    required String titulo,
-    required String detalle,
-    required String prioridad,
-    required bool completada,
+    required Tarea tarea,
+    required WidgetRef ref,
   }) {
     Color colorPrioridad;
     Color fondoPrioridad;
 
-    if (prioridad == 'Media') {
+    if (tarea.prioridad == 'Alta') {
+      colorPrioridad = Colors.red;
+      fondoPrioridad = const Color(0xFFFFE6E4);
+    } else if (tarea.prioridad == 'Media') {
       colorPrioridad = morado;
       fondoPrioridad = const Color(0xFFEEEBF7);
     } else {
@@ -479,8 +495,7 @@ class ResumenDiaScreen extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      height: 84,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -488,64 +503,64 @@ class ResumenDiaScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 25,
-            height: 25,
-            decoration: BoxDecoration(
-              color: completada ? moradoOscuro : Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: completada
-                    ? moradoOscuro
-                    : const Color(0xFFB8B1D3),
-                width: 2,
+          // COMPLETAR
+          InkWell(
+            onTap: () {
+              ref
+                  .read(taskProvider.notifier)
+                  .completarTarea(tarea.id);
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              width: 27,
+              height: 27,
+              decoration: BoxDecoration(
+                color:
+                    tarea.completada ? moradoOscuro : Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: tarea.completada
+                      ? moradoOscuro
+                      : const Color(0xFFB8B1D3),
+                  width: 2,
+                ),
               ),
+              child: tarea.completada
+                  ? const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 18,
+                    )
+                  : null,
             ),
-            child: completada
-                ? const Icon(
-                    Icons.check,
-                    color: Colors.white,
-                    size: 17,
-                  )
-                : null,
           ),
 
-          const SizedBox(width: 14),
+          const SizedBox(width: 13),
 
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  titulo,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  tarea.titulo,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    decoration:
-                        completada ? TextDecoration.lineThrough : null,
-                    color: completada ? textoGris : textoOscuro,
+                    decoration: tarea.completada
+                        ? TextDecoration.lineThrough
+                        : null,
+                    color: tarea.completada
+                        ? textoGris
+                        : textoOscuro,
                   ),
                 ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      size: 14,
-                      color: textoGris,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      detalle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: textoGris,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 6),
+                Text(
+                  tarea.detalle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: textoGris,
+                  ),
                 ),
               ],
             ),
@@ -553,23 +568,46 @@ class ResumenDiaScreen extends StatelessWidget {
 
           const SizedBox(width: 8),
 
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 9,
-              vertical: 5,
-            ),
-            decoration: BoxDecoration(
-              color: fondoPrioridad,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              prioridad,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: colorPrioridad,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: fondoPrioridad,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  tarea.prioridad,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: colorPrioridad,
+                  ),
+                ),
               ),
-            ),
+
+              const SizedBox(height: 5),
+
+              // ELIMINAR
+              IconButton(
+                tooltip: 'Eliminar tarea',
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
+                  ref
+                      .read(taskProvider.notifier)
+                      .eliminarTarea(tarea.id);
+                },
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.redAccent,
+                  size: 21,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -621,3 +659,4 @@ class _ItemNavegacion extends StatelessWidget {
     );
   }
 }
+
