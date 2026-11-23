@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'task_notifier.dart';
 import 'pantallas/escanear_tarea_screen.dart';
 import 'pantallas/nota_gemini_screen.dart';
+import 'pantallas/asistente_screen.dart';
 import 'modelos/tarea.dart' as modelo;
 import 'utils/formato.dart';
 import 'pantallas/tareas_remotas_screen.dart';
@@ -15,12 +16,20 @@ import 'practica/experimento_isolate_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+
+  var firebaseInicializado = false;
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    firebaseInicializado = true;
+  } catch (e) {
+    debugPrint('Firebase no configurado en esta plataforma: $e');
+  }
 
   // Proveedor local de desarrollo: nunca se activa en profile o release.
-  if (kDebugMode &&
+  if (firebaseInicializado &&
+      kDebugMode &&
       !kIsWeb &&
       defaultTargetPlatform == TargetPlatform.android) {
     await FirebaseAppCheck.instance.activate(
@@ -152,6 +161,14 @@ class ResumenDiaScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: moradoOscuro),
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Asistente de tareas'),
+              onPressed: () => Navigator.push<void>(context, MaterialPageRoute(
+                builder: (_) => const AsistenteScreen())),
+            ),
+            const SizedBox(height: 8),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(foregroundColor: moradoOscuro),
               icon: const Icon(Icons.document_scanner_outlined),
